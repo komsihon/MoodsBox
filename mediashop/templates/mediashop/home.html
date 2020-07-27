@@ -1,0 +1,83 @@
+{% extends 'mediashop/base.html' %}
+{% load i18n static user_agents humanize auth_tokens %}
+
+{% block meta %}
+    <meta name="abstract" content="{{ main_album.artist.name }} - {{ main_album.title }}" />
+    <meta name="description" content="New album from {{ main_album.artist.name }}" />
+    <meta property="og:title" content="{{ main_album.artist.name }} - {{ main_album.title }}" />
+    <meta property="og:image" content="{% get_media_prefix %}{{ main_album.cover.thumb_name }}" />
+    <meta property="og:description" content="New album from {{ main_album.artist.name }}" />
+    <meta property="og:url" content="{{ service.url }}" />
+    <meta property="og:site_name" content="{{ service.domain }}" />
+{% endblock %}
+
+{% block page_title %}<title>{{ main_album.artist.name }} - {{ main_album.title }}</title>{% endblock %}
+
+{% block head_style %}
+    {{ block.super }}
+    <style>
+        body {color: #2458dc}
+        body > .header, .header-xs {display: none}
+        .album-cover img {max-width: 400px; width: 80%}
+        #main-album .payment-start {margin-top: 30px; max-width: 240px; width: 80%}
+    </style>
+{% endblock %}
+{% block seo %}
+    <div class="hidden seo">
+        <h1>{{ config.slogan}}</h1>
+        <p>{{ config.description }}</p>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="container" style="padding-bottom: 60px">
+        {% if order %}
+        <div id="pending-download">
+            <p class="pull-left">{% trans "You have a pending download " %}</p>
+            <a href="{% url 'shop:download' order.id %}" class="btn btn-lg btn-success">
+                {% trans "Download" %}
+            </a>
+        </div>
+        {% endif %}
+        <div id="main-album" class="text-center">
+            <div class="album-cover">
+                <img src="{% get_media_prefix %}{{ main_album.cover.name }}" />
+            </div>
+            <button class="btn btn-lg btn-success payment-start" data-product-id="{{ main_album.id }}">
+                {% trans "Download" %}
+            </button>
+            <p style="margin-top: 15px; font-size: 13px">{% blocktrans with cost=main_album.cost|intcomma %}
+                For XAF {{ cost }}. Pay with MTN MoMo or Orange Money
+            {% endblocktrans %}</p>
+            <div class="clearfix"></div>
+        </div>
+        <h2 style="margin: 5vh 0 3vh">{% trans "You can also download ..." %}</h2>
+        <div class="row" style="clear: both">
+            {% for album in album_list %}
+                <div class="col-sm-4">
+                    <div class="album text-center">
+                        <img src="{% get_media_prefix %}{{ album.cover.name }}" class="img-responsive" />
+                        <div class="album-details">
+                            <h3>{{ album.title }}</h3>
+                            <p class="text-muted">XAF {{ album.cost|intcomma }}</p>
+                            <button class="btn btn-lg btn-success payment-start" data-product-id="{{ album.id }}">
+                                {% trans "Download" %}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+            {% endfor %}
+            <div class="clearfix"></div>
+        </div>
+    </div>
+    {% include 'billing/snippets/modal_payment_options.html' %}
+{% endblock %}
+
+{% block js %}
+    {{ block.super }}
+    <script type="text/javascript">
+        (function() {
+        })()
+    </script>
+{% endblock %}

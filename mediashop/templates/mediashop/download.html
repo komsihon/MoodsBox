@@ -1,0 +1,65 @@
+{% extends 'mediashop/base.html' %}
+{% load i18n static user_agents humanize auth_tokens %}
+
+{% block meta %}
+    {{ block.super }}
+    {% include 'webnode/snippets/home_seo.html' %}
+{% endblock %}
+
+{% block page_title %}<title>Tata - Dey No Di Force Love - Download</title>{% endblock %}
+
+{% block head_style %}
+    {{ block.super }}
+    <style>
+        .content {margin-top: 10vh}
+        .notice {font-size: 21px}
+        .notice p {font-size: 21px; margin-top: 15px}
+        body .logo-nav {display: none}
+        h2 {font-size: 24px; margin: 0 0 25px}
+        @media (max-width: 767px) {
+            body > .header, .header-xs {display: none}
+        }
+    </style>
+{% endblock %}
+{% block seo %}
+    <div class="hidden seo">
+        <h1>{{ config.slogan}}</h1>
+        <p>{{ config.description }}</p>
+    </div>
+{% endblock %}
+{% block content %}
+    <div class="content container">
+        <div class="notice text-center">
+            <img src="{% static 'mediashop/img/newbellmusic-logo-stamp.png' %}" width="120"/>
+            <p>Mboko forever !</p>
+        </div>
+        <h2 style="margin-top: 10vh">{% trans "Download your songs now" %}</h2>
+        <div class="download-list">
+            {% for song in order.song_list %}
+            <a class="event" href="{{ song.download_link }}">
+                <div class="subtle-shade event-detail">
+                    <div class="event-icon">
+                        <img src="{% static 'mediashop/img/download-icon.png' %}" />
+                    </div>
+                    <div class="event-content">
+                        <strong class="event-title">{{ song.title }}</strong>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+    {{ block.super }}
+    <script type="text/javascript">
+        (function() {
+            $('.event').click(function() {
+                var link = $(this).attr('href');
+                $.getJSON('', {action: 'log_download', order_id: '{{ order.id }}', link: link})
+            })
+        })()
+    </script>
+{% endblock %}

@@ -1,0 +1,36 @@
+/**
+    Document     : zozivo
+    Created on   : Feb 14, 2019, 18:09
+    Contributors :
+        - Kom Sihon
+    Description:
+        Base CSS for the MediaShop platforms
+*/
+
+#main-album {
+    min-height: 60vh;
+    margin-top: 10vh;
+}
+
+.album {border: 1px solid #eee;padding: 10px;}
+.album h3 {color: #333; font-size: 18px; font-weight: 700}
+.album button {margin-top: 15px; min-width: 240px}
+#main-album .payment-start {margin-top: 30px; max-width: 240px; width: 80%}
+footer {background: none}
+footer p, footer a {color: #545454}
+
+@media (min-width: 768px) {
+    #main-album {min-height: 72vh}
+    .album img {height: 220px;width: 220px;}
+    .album button {min-width: 200px}
+}
+
+@media (min-width: 992px) {
+    body > .header-xs {display: none}
+    .album img {height: 271px;width: 271px;}
+    .album button {min-width: 240px}
+}
+
+@media (min-width: 1200px) {
+    .album img {height: 338px; width: 338px}
+}
