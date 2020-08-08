@@ -84,7 +84,7 @@ class Song(AbstractWatchModel):
     title = models.CharField(max_length=100, db_index=True)
     slug = models.SlugField(db_index=True)
     cover = MultiImageField(upload_to='songs_covers', blank=True, null=True)
-    preview = models.FileField(upload_to='song_previews', blank=True, null=True)
+    preview = models.FileField(upload_to='song_previews', blank=True, null=True, editable=False)
     media = EventFileField(upload_to='songs', blank=True, null=True, callback=generate_song_preview)
     download_link = models.URLField(blank=True, null=True)
     cost = models.IntegerField(default=0)
