@@ -50,6 +50,10 @@ class Home(TemplateView):
         return context
 
 
+class Cart(TemplateView):
+    template_name = 'mediashop/cart.html'
+
+
 class DownloadView(TemplateView):
     template_name = 'mediashop/download.html'
 
@@ -80,24 +84,21 @@ class DownloadView(TemplateView):
 def set_momo_order_checkout(request, *args, **kwargs):
     service = get_service_instance()
     config = service.config
-    album_id = request.POST['product_id']
-    song_id_list = request.POST.get('song_id_list')
+    item_id_list = request.POST.get('item_id_list')
     album_list = []
     song_list = []
     total_cost = 0
 
-    if album_id:
-        album = get_object_or_404(Album, pk=album_id)
-        album_list.append(album)
-        total_cost += album.cost
-
-    if song_id_list:
-        song_id_list = song_id_list.split(',')
-        for pk in song_id_list:
+    if item_id_list:
+        item_id_list = item_id_list.split(',')
+        for pk in item_id_list:
             try:
-                song_list.append(Song.objects.get(pk=pk))
+                album_list.append(Album.objects.get(pk=pk))
             except:
-                continue
+                try:
+                    song_list.append(Song.objects.get(pk=pk))
+                except:
+                    continue
 
     order = Order.objects.create(total_cost=total_cost, album_list=album_list, song_list=song_list)
     model_name = 'mediashop.Order'
