@@ -15,7 +15,7 @@
             {% for row in product_list_as_matrix %}
             <div class="product-row">
                 {% for song in row %}
-                {% url 'music_item_detail' song.artist.slug song.slug as product_url %}
+                {% url 'mediashop:music_item_detail' song.artist.slug song.slug as product_url %}
                 <div class="{% if theme.display == 'Comfortable' %}col-md-6{% elif theme.display == 'Cozy' %}col-md-4{% else %}col-md-3{% endif %} arrival-grid simpleCart_shelfItem">
                     <div class="product-tile">
                         <a class="product-img" href="{{ product_url }}">

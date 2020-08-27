@@ -197,10 +197,14 @@ def set_momo_order_checkout(request, *args, **kwargs):
         item_id_list = item_id_list.split(',')
         for pk in item_id_list:
             try:
-                album_list.append(Album.objects.get(pk=pk))
+                album = Album.objects.get(pk=pk)
+                total_cost += album.cost
+                album_list.append(album)
             except:
                 try:
-                    song_list.append(Song.objects.get(pk=pk))
+                    song = Song.objects.get(pk=pk)
+                    total_cost += song.cost
+                    song_list.append(song)
                 except:
                     continue
 
@@ -214,7 +218,7 @@ def set_momo_order_checkout(request, *args, **kwargs):
                 object_id=order.id, task_id=signature, wallet=mean, username=request.user.username, is_running=True)
     notification_url = service.url + reverse('mediashop:confirm_checkout', args=(tx.id, signature))
     logger.debug(notification_url)
-    cancel_url = service.url + reverse('home')
+    cancel_url = service.url + reverse('mediashop:cart')
     return_url = service.url + reverse('mediashop:download', args=(order.id, ))
     gateway_url = getattr(settings, 'IKWEN_PAYMENT_GATEWAY_URL', 'http://payment.ikwen.com/v1')
     endpoint = gateway_url + '/request_payment'

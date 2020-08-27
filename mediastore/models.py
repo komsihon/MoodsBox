@@ -4,6 +4,7 @@ import subprocess
 from django.conf import settings
 from django.contrib.humanize.templatetags.humanize import intcomma
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 from djangotoolbox.fields import ListField
 
 from ikwen.core.models import AbstractWatchModel
@@ -26,7 +27,8 @@ class Artist(AbstractWatchModel):
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True)
     photo = MultiImageField(upload_to='artists_photos', required_width=300, required_height=300,
-                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True)
+                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True,
+                            help_text=_("JPEG Image, 300 &times; 300px"))
 
     turnover_history = ListField()
     earnings_history = ListField()
@@ -49,7 +51,8 @@ class Album(AbstractWatchModel):
     title = models.CharField(max_length=100, db_index=True)
     slug = models.SlugField(db_index=True)
     cover = MultiImageField(upload_to='albums_covers', required_width=300, required_height=300,
-                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True)
+                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True,
+                            help_text=_("JPEG Image, 300 &times; 300px"))
     release = models.DateField(blank=True, null=True, db_index=True)
     archive = FileField(upload_to='albums_covers', allowed_extensions=['zip', 'rar', '7z'], blank=True, null=True)
     cost = models.IntegerField(default=0)
@@ -86,7 +89,8 @@ class Song(AbstractWatchModel):
     title = models.CharField(max_length=100, db_index=True)
     slug = models.SlugField(db_index=True)
     cover = MultiImageField(upload_to='songs_covers', required_width=300, required_height=300,
-                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True)
+                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True,
+                            help_text=_("JPEG Image, 300 &times; 300px"))
     preview = models.FileField(upload_to='song_previews', blank=True, null=True, editable=False)
     media = FileField(upload_to='songs', blank=True, null=True, allowed_extensions=['mp3'], callback=generate_song_preview)
     download_link = models.URLField(blank=True, null=True)
