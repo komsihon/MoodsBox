@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import requests
 from django.conf import settings
 from django.contrib import messages
+from django.core.paginator import PageNotAnInteger, EmptyPage, Paginator
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
@@ -16,14 +17,19 @@ from django.views.generic import TemplateView
 
 from ikwen.conf.settings import WALLETS_DB_ALIAS
 from ikwen.core.constants import CONFIRMED, COMPLETE
-from ikwen.core.utils import get_service_instance
+from ikwen.core.views import HybridListView
+from ikwen.core.utils import get_service_instance, as_matrix
 from ikwen.billing.models import MoMoTransaction
 from ikwen.billing.mtnmomo.views import MTN_MOMO
 
 from mediashop.models import Order, Download
-from mediastore.models import Album, Song
+from mediastore.models import Album, Song, Artist
 
 logger = logging.getLogger('ikwen')
+
+COZY = "Cozy"
+COMPACT = "Compact"
+COMFORTABLE = "Comfortable"
 
 
 class Home(TemplateView):
@@ -47,6 +53,101 @@ class Home(TemplateView):
             context['order'] = order
         context['main_album'] = main_album
         context['album_list'] = album_list
+        return context
+
+
+class AlbumList(HybridListView):
+    template_name = 'mediashop/music_item_detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(AlbumList, self).get_context_data(**kwargs)
+        slug = kwargs.get('slug')
+        if slug:
+            artist = get_object_or_404(Artist, slug=slug)
+            album_list = Album.objects.select_related('artist').filter(artist=artist).order_by('-id')
+            song_list = Song.objects.select_related('artist').filter(artist=artist, album=None).order_by('-id')
+        else:
+            album_list = Album.objects.select_related('artist').all().order_by('-id')[:20]
+            song_list = Song.objects.select_related('artist').filter(album=None)[:20].order_by('-id')
+        context['album_list'] = album_list
+        context['song_list'] = song_list
+        return context
+
+
+class SongList(HybridListView):
+    template_name = 'mediashop/song_list.html'
+    html_results_template_name = 'mediashop/snippets/song_list_results.html'
+
+    def _get_row_len(self):
+        config = get_service_instance().config
+        if config.theme and config.theme.display == COMFORTABLE:
+            return 2
+        elif config.theme and config.theme.display == COZY:
+            return 3
+        return 4
+
+    def get_queryset(self):
+        slug = self.kwargs.get('slug')
+        if slug:
+            artist = get_object_or_404(Artist, slug=slug)
+            queryset = Song.objects.select_related('artist').filter(artist=artist, album=None).order_by('-id')
+        else:
+            queryset = Song.objects.select_related('artist').filter(is_active=True)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super(SongList, self).get_context_data(**kwargs)
+        slug = kwargs.get('slug')
+        queryset = context['object_list']
+        page_size = 9 if self.request.user_agent.is_mobile else 15
+        if slug:
+            artist = get_object_or_404(Artist, slug=slug)
+            album_list = Album.objects.select_related('artist').filter(artist=artist).order_by('-id')
+            context['album_list'] = album_list
+        paginator = Paginator(queryset, page_size)
+        products_page = paginator.page(1)
+        context['products_page'] = products_page
+        context['product_list_as_matrix'] = as_matrix(products_page.object_list, self._get_row_len())
+        return context
+
+    def render_to_response(self, context, **response_kwargs):
+        if self.request.GET.get('format') == 'html_results':
+            page_size = 9 if self.request.user_agent.is_mobile else 15
+            queryset = self.get_queryset()
+            product_queryset = self.get_search_results(queryset, max_chars=4)
+            paginator = Paginator(product_queryset, page_size)
+            page = self.request.GET.get('page')
+            try:
+                products_page = paginator.page(page)
+                context['product_list_as_matrix'] = as_matrix(products_page.object_list, self._get_row_len())
+            except PageNotAnInteger:
+                products_page = paginator.page(1)
+                context['product_list_as_matrix'] = as_matrix(products_page.object_list, self._get_row_len())
+            except EmptyPage:
+                products_page = paginator.page(paginator.num_pages)
+                context['product_list_as_matrix'] = as_matrix(products_page.object_list, self._get_row_len())
+            context['products_page'] = products_page
+            return render(self.request, 'shopping/snippets/product_list_results.html', context)
+        else:
+            return super(SongList, self).render_to_response(context, **response_kwargs)
+
+
+class MusicItemDetail(TemplateView):
+    template_name = 'mediashop/music_item_detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(MusicItemDetail, self).get_context_data(**kwargs)
+        artist_slug = kwargs.get('artist_slug')
+        item_slug = kwargs.get('item_slug')
+        artist = get_object_or_404(Artist, slug=artist_slug)
+        try:
+            item = Album.objects.select_related('artist').get(artist=artist, slug=item_slug, is_active=True)
+        except Album.DoesNotExist:
+            try:
+                item = Song.objects.select_related('artist', 'album').get(artist=artist, slug=item_slug, is_active=True)
+            except:
+                raise Http404("No such item found")
+        context['product'] = item
         return context
 
 
@@ -77,6 +178,9 @@ class DownloadView(TemplateView):
             return HttpResponseRedirect(reverse('home'))
         self.request.session['order_id'] = order_id
         order = get_object_or_404(Order, pk=order_id)
+        diff = datetime.now() - order.created_on
+        if diff.total_seconds() >= 3600:
+            order.is_more_than_one_hour_old = True
         context['order'] = order
         return context
 
@@ -109,6 +213,7 @@ def set_momo_order_checkout(request, *args, **kwargs):
         .create(service_id=service.id, type=MoMoTransaction.CASH_OUT, amount=total_cost, phone='N/A', model=model_name,
                 object_id=order.id, task_id=signature, wallet=mean, username=request.user.username, is_running=True)
     notification_url = service.url + reverse('mediashop:confirm_checkout', args=(tx.id, signature))
+    logger.debug(notification_url)
     cancel_url = service.url + reverse('home')
     return_url = service.url + reverse('mediashop:download', args=(order.id, ))
     gateway_url = getattr(settings, 'IKWEN_PAYMENT_GATEWAY_URL', 'http://payment.ikwen.com/v1')
@@ -186,7 +291,6 @@ def confirm_checkout(request, *args, **kwargs):
     tx = MoMoTransaction.objects.using('wallets').get(service_id=service.id, object_id=order_id)
     order.phone = tx.phone
     order.mean = mean
-    album = order.album_list[0]
     song_list = []
     timeout = getattr(settings, 'SECURE_LINK_TIMEOUT', 90)
     expires = int(time.time()) + timeout * 60
@@ -198,16 +302,12 @@ def confirm_checkout(request, *args, **kwargs):
             break
 
     order.expires = expires
-    for song in album.song_set.all():
-        filename = song.media.name
-        song.download_link = generate_download_link(filename, expires)
-        song_list.append(song)
-
-    if album.archive.name:
-        archive = Song(title='%s Full Album' % album.title)
-        filename = album.archive.name
-        archive.download_link = generate_download_link(filename, expires)
-        song_list.append(archive)
+    for album in order.album_list:
+        if album.archive.name:
+            archive = Song(title='%s Full Album' % album.title)
+            filename = album.archive.name
+            archive.download_link = generate_download_link(filename, expires)
+            song_list.append(archive)
 
     for song in order.song_list:
         filename = song.media.name

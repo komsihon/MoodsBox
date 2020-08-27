@@ -7,7 +7,7 @@ from django.db import models
 from djangotoolbox.fields import ListField
 
 from ikwen.core.models import AbstractWatchModel
-from ikwen.core.fields import MultiImageField, EventFileField
+from ikwen.core.fields import MultiImageField, FileField
 
 
 def generate_song_preview(filename):
@@ -25,7 +25,8 @@ def generate_song_preview(filename):
 class Artist(AbstractWatchModel):
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True)
-    photo = MultiImageField(upload_to='artists_photos', blank=True, null=True)
+    photo = MultiImageField(upload_to='artists_photos', required_width=300, required_height=300,
+                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True)
 
     turnover_history = ListField()
     earnings_history = ListField()
@@ -47,9 +48,10 @@ class Album(AbstractWatchModel):
     artist = models.ForeignKey(Artist)
     title = models.CharField(max_length=100, db_index=True)
     slug = models.SlugField(db_index=True)
-    cover = MultiImageField(upload_to='albums_covers', blank=True, null=True)
+    cover = MultiImageField(upload_to='albums_covers', required_width=300, required_height=300,
+                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True)
     release = models.DateField(blank=True, null=True, db_index=True)
-    archive = models.FileField(upload_to='albums_covers', blank=True, null=True)
+    archive = FileField(upload_to='albums_covers', allowed_extensions=['zip', 'rar', '7z'], blank=True, null=True)
     cost = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     is_main = models.BooleanField(default=False)
@@ -83,9 +85,10 @@ class Song(AbstractWatchModel):
     album = models.ForeignKey(Album, blank=True, null=True)
     title = models.CharField(max_length=100, db_index=True)
     slug = models.SlugField(db_index=True)
-    cover = MultiImageField(upload_to='songs_covers', blank=True, null=True)
+    cover = MultiImageField(upload_to='songs_covers', required_width=300, required_height=300,
+                            allowed_extensions=['jpg', 'jpeg'], blank=True, null=True)
     preview = models.FileField(upload_to='song_previews', blank=True, null=True, editable=False)
-    media = EventFileField(upload_to='songs', blank=True, null=True, callback=generate_song_preview)
+    media = FileField(upload_to='songs', blank=True, null=True, allowed_extensions=['mp3'], callback=generate_song_preview)
     download_link = models.URLField(blank=True, null=True)
     cost = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
