@@ -13,10 +13,10 @@ from django.core.paginator import PageNotAnInteger, EmptyPage, Paginator
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, DetailView
 
 from ikwen.conf.settings import WALLETS_DB_ALIAS
-from ikwen.core.constants import CONFIRMED, COMPLETE
+from ikwen.core.constants import CONFIRMED
 from ikwen.core.views import HybridListView
 from ikwen.core.utils import get_service_instance, as_matrix
 from ikwen.billing.models import MoMoTransaction
@@ -32,49 +32,7 @@ COMPACT = "Compact"
 COMFORTABLE = "Comfortable"
 
 
-class Home(TemplateView):
-    template_name = 'mediashop/home.html'
-
-    def get_context_data(self, **kwargs):
-        context = super(Home, self).get_context_data(**kwargs)
-        try:
-            main_album = Album.objects.select_related('artist').get(is_main=True)
-        except:
-            main_album = Album.objects.select_related('artist').filter(is_active=True).order_by('-id')[0]
-        album_list = Album.objects.exclude(pk=main_album.id).filter(is_active=True).order_by('-id')
-        order_id = self.request.session.get('order_id')
-        if order_id:
-            timeout = getattr(settings, 'SECURE_LINK_TIMEOUT', 90)
-            ninety_mn_ago = datetime.now() - timedelta(minutes=timeout)
-            try:
-                order = Order.objects.get(pk=order_id, status=COMPLETE, created_on__lte=ninety_mn_ago)
-            except Order.DoesNotExist:
-                order = None
-            context['order'] = order
-        context['main_album'] = main_album
-        context['album_list'] = album_list
-        return context
-
-
-class AlbumList(HybridListView):
-    template_name = 'mediashop/music_item_detail.html'
-
-    def get_context_data(self, **kwargs):
-        context = super(AlbumList, self).get_context_data(**kwargs)
-        slug = kwargs.get('slug')
-        if slug:
-            artist = get_object_or_404(Artist, slug=slug)
-            album_list = Album.objects.select_related('artist').filter(artist=artist).order_by('-id')
-            song_list = Song.objects.select_related('artist').filter(artist=artist, album=None).order_by('-id')
-        else:
-            album_list = Album.objects.select_related('artist').all().order_by('-id')[:20]
-            song_list = Song.objects.select_related('artist').filter(album=None)[:20].order_by('-id')
-        context['album_list'] = album_list
-        context['song_list'] = song_list
-        return context
-
-
-class SongList(HybridListView):
+class MediaList(HybridListView):
     template_name = 'mediashop/song_list.html'
     html_results_template_name = 'mediashop/snippets/song_list_results.html'
 
@@ -87,32 +45,26 @@ class SongList(HybridListView):
         return 4
 
     def get_queryset(self):
-        slug = self.kwargs.get('slug')
-        if slug:
-            artist = get_object_or_404(Artist, slug=slug)
-            queryset = Song.objects.select_related('artist').filter(artist=artist, album=None).order_by('-id')
-        else:
-            queryset = Song.objects.select_related('artist').filter(is_active=True)
+        queryset = Song.objects.select_related('artist').filter(is_active=True).order_by('-id')
         return queryset
 
     def get_context_data(self, **kwargs):
-        context = super(SongList, self).get_context_data(**kwargs)
-        slug = kwargs.get('slug')
+        context = super(MediaList, self).get_context_data(**kwargs)
         queryset = context['object_list']
-        page_size = 9 if self.request.user_agent.is_mobile else 15
-        if slug:
-            artist = get_object_or_404(Artist, slug=slug)
-            album_list = Album.objects.select_related('artist').filter(artist=artist).order_by('-id')
-            context['album_list'] = album_list
+        page_size = 12 if self.request.user_agent.is_mobile else 24
         paginator = Paginator(queryset, page_size)
         products_page = paginator.page(1)
+        try:
+            context['sample'] = queryset[0]
+        except:
+            pass
         context['products_page'] = products_page
         context['product_list_as_matrix'] = as_matrix(products_page.object_list, self._get_row_len())
         return context
 
     def render_to_response(self, context, **response_kwargs):
         if self.request.GET.get('format') == 'html_results':
-            page_size = 9 if self.request.user_agent.is_mobile else 15
+            page_size = 12 if self.request.user_agent.is_mobile else 24
             queryset = self.get_queryset()
             product_queryset = self.get_search_results(queryset, max_chars=4)
             paginator = Paginator(product_queryset, page_size)
@@ -129,7 +81,56 @@ class SongList(HybridListView):
             context['products_page'] = products_page
             return render(self.request, 'shopping/snippets/product_list_results.html', context)
         else:
-            return super(SongList, self).render_to_response(context, **response_kwargs)
+            return super(MediaList, self).render_to_response(context, **response_kwargs)
+
+
+class Home(MediaList):
+
+    def get_queryset(self):
+        queryset = Song.objects.select_related('artist').filter(is_active=True, show_on_home=True)
+        return queryset
+
+
+class ArtistList(MediaList):
+    template_name = 'mediashop/artist_list.html'
+    model = Artist
+
+    def get_queryset(self):
+        return Artist.objects.all()#.filter(is_active=True)
+
+
+class ArtistDetail(DetailView):
+    template_name = 'mediashop/artist_detail.html'
+    model = Artist
+
+    def get_context_data(self, **kwargs):
+        context = super(ArtistDetail, self).get_context_data(**kwargs)
+        artist = context['artist']
+        context['album_list'] = Album.objects.filter(artist=artist, is_active=True)
+        context['single_list'] = Song.objects.filter(artist=artist, album=None, is_active=True)
+        return context
+
+
+class AlbumList(MediaList):
+    template_name = 'mediashop/album_list.html'
+
+    def get_queryset(self):
+        slug = self.kwargs.get('slug')
+        if slug:
+            artist = get_object_or_404(Artist, slug=slug)
+            queryset = Album.objects.select_related('artist').filter(artist=artist, is_active=True)
+        else:
+            queryset = Album.objects.select_related('artist').filter(is_active=True)
+        return queryset
+
+
+class AlbumDetail(DetailView):
+    template_name = 'mediashop/album_detail.html'
+    model = Album
+
+    def get_object(self, queryset=None):
+        slug = self.kwargs.get('slug')
+        return get_object_or_404(Album, slug=slug, is_active=True)
 
 
 class MusicItemDetail(TemplateView):

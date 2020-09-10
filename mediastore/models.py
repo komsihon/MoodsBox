@@ -29,6 +29,7 @@ class Artist(AbstractWatchModel):
     photo = MultiImageField(upload_to='artists_photos', required_width=300, required_height=300,
                             allowed_extensions=['jpg', 'jpeg'], blank=True, null=True,
                             help_text=_("JPEG Image, 300 &times; 300px"))
+    is_active = models.BooleanField(default=True)
 
     turnover_history = ListField()
     earnings_history = ListField()

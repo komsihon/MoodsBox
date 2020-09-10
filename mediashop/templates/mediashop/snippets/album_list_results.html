@@ -14,33 +14,27 @@
         {% with theme=config.theme %}
             {% for row in product_list_as_matrix %}
             <div class="product-row">
-                {% for item in row %}
-                {% url 'mediashop:music_item_detail' item.artist.slug item.slug as product_url %}
+                {% for album in row %}
+                {% url 'mediashop:music_item_detail' album.artist.slug album.slug as product_url %}
                 <div class="{% if theme.display == 'Comfortable' %}col-md-6{% elif theme.display == 'Cozy' %}col-md-4{% else %}col-md-3{% endif %} arrival-grid simpleCart_shelfItem">
-                    <div class="product-tile">
+                    <div class="product-tile simpleCart_shelfItem">
                         <a class="product-img" href="{{ product_url }}">
-                            <img src="{% get_media_prefix %}{{ item.image.small_name }}" class="img-responsive">
+                            <img src="{% get_media_prefix %}{{ album.image.small_name }}" class="img-responsive">
                         </a>
-                        {% if item.badge_text %}
-                            <div class="ribben">
-                                <p>{{ item.badge_text }}</p>
-                            </div>
-                        {% endif %}
                         <div class="product-about">
-                            <h6><a href="{{ product_url }}" class="item_name">{{ item.artist }} - {{ item.title }}</a></h6>
+                            <h6><a href="{{ product_url }}" class="item_name">{{ album.artist }} - {{ album.title }}</a></h6>
                             <p class="product-price">
-                                <em class="item-price-verbose">{{ CURRENCY.symbol }} {{ item.cost|currency:CURRENCY.code|floatformat:CURRENCY.precision|intcomma }}</em>
+                                <em class="item-price-verbose">{{ CURRENCY.symbol }} {{ album.cost|currency:CURRENCY.code|floatformat:CURRENCY.precision|intcomma }}</em>
                             </p>
                             <button class="my-cart-b item_add" data-text="{% trans "Add To Cart" %}">
                                 {% trans "Add To Cart" %}
                                 <div class="mask"></div>
                             </button>
-                            <span class="hidden item_id">{{ item.id }}</span>
-                            <span class="hidden item_image">{% get_media_prefix %}{{ item.image.small_name }}</span>
-                            <span class="hidden item_preview">{% get_media_prefix %}previews/{{ item.media.name }}</span>
+                            <span class="hidden item_id">{{ album.id }}</span>
+                            <span class="hidden item_image">{% get_media_prefix %}{{ album.image.small_name }}</span>
                             <span class="hidden item_url">{{ product_url }}</span>
                             <span class="hidden item_type">music</span>
-                            <span class="hidden item_price">{{ item.cost|currency:CURRENCY.code }}</span>
+                            <span class="hidden item_price">{{ album.cost|currency:CURRENCY.code }}</span>
                             <span class="hidden item_packing_price">0</span>
                             <span class="hidden item_quantity">1</span>
                             <span class="hidden item_size">-------</span>
