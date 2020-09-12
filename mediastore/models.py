@@ -3,11 +3,12 @@ import subprocess
 
 from django.conf import settings
 from django.contrib.humanize.templatetags.humanize import intcomma
+from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from djangotoolbox.fields import ListField
 
-from ikwen.core.models import AbstractWatchModel
+from ikwen.core.models import AbstractWatchModel, Service
 from ikwen.core.fields import MultiImageField, FileField
 
 
@@ -30,6 +31,7 @@ class Artist(AbstractWatchModel):
                             allowed_extensions=['jpg', 'jpeg'], blank=True, null=True,
                             help_text=_("JPEG Image, 300 &times; 300px"))
     is_active = models.BooleanField(default=True)
+    tags = models.TextField(blank=True, null=True)
 
     turnover_history = ListField()
     earnings_history = ListField()
@@ -46,6 +48,14 @@ class Artist(AbstractWatchModel):
         return self.photo
     image = property(_get_image)
 
+    def to_dict(self):
+        val = super(Artist, self).to_dict()
+        val['type'] = 'artist'
+        val['url'] = reverse('mediashop:artist_detail', args=(self.slug, ))
+        image_url = self.photo.name if self.photo.name else Service.LOGO_PLACEHOLDER
+        val['image'] = getattr(settings, 'MEDIA_URL') + image_url
+        return val
+
 
 class Album(AbstractWatchModel):
     artist = models.ForeignKey(Artist)
@@ -61,6 +71,7 @@ class Album(AbstractWatchModel):
     is_main = models.BooleanField(default=False)
     show_on_home = models.BooleanField(default=False)
     order_of_appearance = models.IntegerField(default=0)
+    tags = models.TextField(blank=True, null=True)
 
     turnover_history = ListField()
     earnings_history = ListField()
@@ -83,6 +94,14 @@ class Album(AbstractWatchModel):
     def get_obj_details(self):
         return "XAF %s" % intcomma(self.cost)
 
+    def to_dict(self):
+        val = super(Album, self).to_dict()
+        val['type'] = 'album'
+        val['url'] = reverse('mediashop:music_item_detail', args=(self.artist.slug, self.slug))
+        image_url = self.cover.name if self.cover.name else Service.LOGO_PLACEHOLDER
+        val['image'] = getattr(settings, 'MEDIA_URL') + image_url
+        return val
+
 
 class Song(AbstractWatchModel):
     artist = models.ForeignKey(Artist)
@@ -99,6 +118,7 @@ class Song(AbstractWatchModel):
     is_active = models.BooleanField(default=True)
     show_on_home = models.BooleanField(default=False)
     order_of_appearance = models.IntegerField(default=0)
+    tags = models.TextField(blank=True, null=True)
 
     turnover_history = ListField()
     earnings_history = ListField()
@@ -123,3 +143,11 @@ class Song(AbstractWatchModel):
 
     def get_obj_details(self):
         return "XAF %d" % self.cost
+
+    def to_dict(self):
+        val = super(Song, self).to_dict()
+        val['type'] = 'song'
+        val['url'] = reverse('mediashop:music_item_detail', args=(self.artist.slug, self.slug))
+        image_url = self.image.name if self.image.name else Service.LOGO_PLACEHOLDER
+        val['image'] = getattr(settings, 'MEDIA_URL') + image_url
+        return val

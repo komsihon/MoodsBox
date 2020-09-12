@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 import random
 import string
 import time
@@ -13,6 +14,7 @@ from django.core.paginator import PageNotAnInteger, EmptyPage, Paginator
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
+from django.template.defaultfilters import slugify
 from django.views.generic import TemplateView, DetailView
 
 from ikwen.conf.settings import WALLETS_DB_ALIAS
@@ -122,15 +124,6 @@ class AlbumList(MediaList):
         else:
             queryset = Album.objects.select_related('artist').filter(is_active=True)
         return queryset
-
-
-class AlbumDetail(DetailView):
-    template_name = 'mediashop/album_detail.html'
-    model = Album
-
-    def get_object(self, queryset=None):
-        slug = self.kwargs.get('slug')
-        return get_object_or_404(Album, slug=slug, is_active=True)
 
 
 class MusicItemDetail(TemplateView):
@@ -246,6 +239,27 @@ def set_momo_order_checkout(request, *args, **kwargs):
         logger.error("%s - Init payment flow failed with URL." % service.project_name, exc_info=True)
         next_url = cancel_url
     return HttpResponseRedirect(next_url)
+
+
+class Search(TemplateView):
+    def get_context_data(self, **kwargs):
+        context = super(Search, self).get_context_data(**kwargs)
+        q = self.request.GET['q']
+        q = slugify(q)[:4]
+        context['artist_qs'] = Artist.objects.filter(tags__icontains=q).order_by('name', '-id')
+        context['album_qs'] = Album.objects.filter(tags__icontains=q).order_by('title', '-id')
+        context['song_qs'] = Song.objects.filter(tags__icontains=q).order_by('title', '-id')
+        return context
+
+    def render_to_response(self, context, **response_kwargs):
+        format = self.request.GET.get('format')
+        if format == 'json':
+            artist_list = [obj.to_dict() for obj in context['artist_qs']]
+            album_list = [obj.to_dict() for obj in context['album_qs']]
+            song_list = [obj.to_dict() for obj in context['song_qs']]
+            response = artist_list + album_list + song_list
+            return HttpResponse(json.dumps(response))
+        return super(Search, self).render_to_response(context, **response_kwargs)
 
 
 def confirm_checkout(request, *args, **kwargs):
