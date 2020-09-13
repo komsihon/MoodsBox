@@ -202,7 +202,8 @@ def set_momo_order_checkout(request, *args, **kwargs):
                 except:
                     continue
 
-    order = Order.objects.create(total_cost=total_cost, album_list=album_list, song_list=song_list)
+    member = request.user if request.user.is_authenticated() else None
+    order = Order.objects.create(total_cost=total_cost, album_list=album_list, song_list=song_list, member=member)
     model_name = 'mediashop.Order'
     mean = request.GET.get('mean', MTN_MOMO)
     signature = ''.join([random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(16)])
@@ -216,6 +217,7 @@ def set_momo_order_checkout(request, *args, **kwargs):
     return_url = service.url + reverse('mediashop:download', args=(order.id, ))
     gateway_url = getattr(settings, 'IKWEN_PAYMENT_GATEWAY_URL', 'http://payment.ikwen.com/v1')
     endpoint = gateway_url + '/request_payment'
+    user_id = request.user.username if request.user.is_authenticated() else '<Anonymous>'
     params = {
         'username': getattr(settings, 'IKWEN_PAYMENT_GATEWAY_USERNAME', service.project_name_slug),
         'amount': total_cost,
@@ -223,7 +225,7 @@ def set_momo_order_checkout(request, *args, **kwargs):
         'notification_url': notification_url,
         'return_url': return_url,
         'cancel_url': cancel_url,
-        'user_id': request.user.username
+        'user_id': user_id
     }
     try:
         r = requests.get(endpoint, params)
