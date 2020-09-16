@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+     <head>
+        <title>Redirecting ...</title>
+    </head>
+    <body onload="document.redirect.submit()">
+        <form method="post" id='redirect' name="redirect" action="{% url 'mediashop:paypal_do_checkout' %}">
+            {% csrf_token %}
+            <input type="hidden" name="order_id" value="{{ request.GET.order_id }}">
+        </form>
+    </body>
+</html>

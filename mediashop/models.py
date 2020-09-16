@@ -1,4 +1,4 @@
-
+from currencies.models import Currency
 from django.db import models
 from djangotoolbox.fields import ListField, EmbeddedModelField
 
@@ -17,6 +17,7 @@ class Order(Model):
     expires = models.IntegerField(default=0, db_index=True)
     mean = models.CharField(max_length=15, blank=True, null=True)
     status = models.CharField(max_length=15, default=PENDING)
+    currency = models.ForeignKey(Currency, blank=True, null=True)
     tags = models.CharField(max_length=150, blank=True, null=True, db_index=True)
 
 

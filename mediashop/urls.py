@@ -1,11 +1,18 @@
 
 from django.conf.urls import patterns, url
+
+from mediashop.paypal.views import SetExpressCheckout, GetExpressCheckoutDetails, DoExpressCheckout
 from mediashop.views import Home, MusicItemDetail, set_momo_order_checkout, confirm_checkout, Cart, \
     DownloadView, ArtistList, ArtistDetail, AlbumList, MediaList, Search
 
 urlpatterns = patterns(
     '',
     url(r'^$', Home.as_view(), name='home'),
+
+    url(r'^paypal/setCheckout/', SetExpressCheckout.as_view(), name='paypal_set_checkout'),
+    url(r'^paypal/getDetails/$', GetExpressCheckoutDetails.as_view(), name='paypal_get_details'),
+    url(r'^paypal/doCheckout/$', DoExpressCheckout.as_view(), name='paypal_do_checkout'),
+
     url(r'^cart$', Cart.as_view(), name='cart'),
     url(r'^download/(?P<order_id>[-\w]+)$', DownloadView.as_view(), name='download'),
     url(r'^set_checkout$', set_momo_order_checkout),

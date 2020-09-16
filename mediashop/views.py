@@ -8,6 +8,8 @@ import logging
 from datetime import datetime, timedelta
 
 import requests
+from currencies.models import Currency
+from currencies.conf import SESSION_KEY as CURRENCY_SESSION_KEY
 from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import PageNotAnInteger, EmptyPage, Paginator
@@ -179,9 +181,7 @@ class DownloadView(TemplateView):
         return context
 
 
-def set_momo_order_checkout(request, *args, **kwargs):
-    service = get_service_instance()
-    config = service.config
+def parse_order_info(request):
     item_id_list = request.POST.get('item_id_list')
     album_list = []
     song_list = []
@@ -203,13 +203,28 @@ def set_momo_order_checkout(request, *args, **kwargs):
                     continue
 
     member = request.user if request.user.is_authenticated() else None
-    order = Order.objects.create(total_cost=total_cost, album_list=album_list, song_list=song_list, member=member)
+    try:
+        currency = Currency.objects.get(code=request.session[CURRENCY_SESSION_KEY])
+    except KeyError:
+        currency = Currency.active.base()
+    except Currency.DoesNotExist:
+        currency = Currency.objects.all()[0]
+
+    order = Order.objects.create(total_cost=total_cost, album_list=album_list, song_list=song_list,
+                                 member=member, currency=currency)
+    return order
+
+
+def set_momo_order_checkout(request, *args, **kwargs):
+    service = get_service_instance()
+    config = service.config
+    order = parse_order_info(request)
     model_name = 'mediashop.Order'
     mean = request.GET.get('mean', MTN_MOMO)
     signature = ''.join([random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(16)])
     MoMoTransaction.objects.using(WALLETS_DB_ALIAS).filter(object_id=order.id).delete()
     tx = MoMoTransaction.objects.using(WALLETS_DB_ALIAS)\
-        .create(service_id=service.id, type=MoMoTransaction.CASH_OUT, amount=total_cost, phone='N/A', model=model_name,
+        .create(service_id=service.id, type=MoMoTransaction.CASH_OUT, amount=order.total_cost, phone='N/A', model=model_name,
                 object_id=order.id, task_id=signature, wallet=mean, username=request.user.username, is_running=True)
     notification_url = service.url + reverse('mediashop:confirm_checkout', args=(tx.id, signature))
     logger.debug(notification_url)
@@ -220,7 +235,7 @@ def set_momo_order_checkout(request, *args, **kwargs):
     user_id = request.user.username if request.user.is_authenticated() else '<Anonymous>'
     params = {
         'username': getattr(settings, 'IKWEN_PAYMENT_GATEWAY_USERNAME', service.project_name_slug),
-        'amount': total_cost,
+        'amount': order.total_cost,
         'merchant_name': config.company_name,
         'notification_url': notification_url,
         'return_url': return_url,
